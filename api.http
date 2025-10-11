@@ -1,0 +1,46 @@
+#POST http://192.168.100.21:8000/api/app/create/user
+#
+#{
+#"name": "Cliente Nuevo",
+#"email": "cli@ gmail.com",
+#"usernick": "cli123",
+#"num_id": "789",
+#"password": "123456789",
+#"password_confirmation": "123456789",
+#"tipo_usuario": "cliente",
+#"tipo_cliente": "normal",
+#"telefono": "1234567890"
+#}
+#GET http://192.168.100.21:8000/api/app/inmuebles/1/galeria
+#Accept: application/json
+#Content-Type: application/json
+
+#POST http://192.168.1.19:8000/api/app/solicitudes-alquiler/store
+#Accept: application/json
+#Content-Type: application/json
+#
+#{
+#    "id": 0,
+#    "inmueble_id": 2,
+#    "user_id": 2,
+#    "estado": "pendiente",
+#    "servicios_basicos":
+#    [
+#        {
+#            "id": 1,
+#            "nombre": "Agua",
+#            "descripcion": "Servicio de agua potable",
+#            "s_selected": true
+#        },
+#        {
+#            "id": 2,
+#            "nombre": "Luz",
+#            "descripcion": "Servicio de electricidad",
+#            "is_selected": true
+#        }
+#    ],
+#    "mensaje": "Solicitud inicial"
+#}
+GET http://192.168.1.19:8000/api/app/solicitudes-alquiler/cliente/2
+Accept: application/json
+Content-Type: application/json

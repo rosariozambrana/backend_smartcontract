@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Http\Controllers\Concerns\HasDynamicQuery;
 use App\Models\Accesorio;
 use App\Models\TipoInmueble;
 use App\Http\Requests\StoreTipoInmuebleRequest;
@@ -14,6 +15,8 @@ use Inertia\Inertia;
 
 class TipoInmuebleController extends Controller
 {
+    use HasDynamicQuery;
+
     public TipoInmueble $model;
     public $rutaVisita = 'TipoInmueble';
     public function __construct()
@@ -25,54 +28,6 @@ class TipoInmuebleController extends Controller
         $this->middleware('permission:almacen-delete', ['only' => ['destroy']]);*/
     }
 
-    public function query(Request $request)
-    {
-        try {
-            $queryStr = $request->get('query', '');
-            $perPage = $request->get('perPage', 10);
-            $page = $request->get('page', 1);
-            $attributes = $request->get('attributes', ['id']); // Atributos por defecto
-
-            // Obtener los atributos del modelo
-            $modelAttributes = $this->model->getFillable();
-            $modelAttributes[] = 'created_at';
-            $modelAttributes[] = 'updated_at';
-
-            // Validación de atributos
-            foreach ($attributes as $attribute) {
-                if (!in_array($attribute, $modelAttributes)) {
-                    return ResponseService::error('Atributo no permitido: ' . $attribute, '', 400);
-                }
-            }
-
-            $query = $this->model::query();
-
-            if (!empty($queryStr)) {
-                $query->where(function ($q) use ($attributes, $queryStr) {
-                    foreach ($attributes as $i => $attribute) {
-                        if (in_array($attribute, ['created_at', 'updated_at'])) {
-                            $method = $i === 0 ? 'whereDate' : 'orWhereDate';
-                            $q->$method($attribute, $queryStr);
-                        } else {
-                            $method = $i === 0 ? 'where' : 'orWhere';
-                            $q->$method($attribute, 'LIKE', '%' . $queryStr . '%');
-                        }
-                    }
-                });
-            }
-
-            $response = $query->orderBy('id', 'ASC')->get();
-            // calcular el total de registros
-            $total = $response->count();
-
-            return ResponseService::success(
-                "{$total} datos encontrados con {$queryStr}",
-                $response
-            );
-        } catch (\Exception $e) {
-            return ResponseService::error($e->getMessage(), '', $e->getCode());
-        }
-    }
     /**
      * Display a listing of the resource.
      */

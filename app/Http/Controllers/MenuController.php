@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Http\Controllers\Concerns\HasDynamicQuery;
 use App\Models\Menu;
 use App\Http\Requests\StoreMenuRequest;
 use App\Http\Requests\UpdateMenuRequest;
@@ -13,6 +14,8 @@ use Inertia\Inertia;
 
 class MenuController extends Controller
 {
+    use HasDynamicQuery;
+
     public string $rutaVisita = 'Menu';
     public Menu $model;
     public function __construct()
@@ -22,21 +25,6 @@ class MenuController extends Controller
         $this->middleware('permission:almacen-create', ['only' => ['create', 'store']]);
         $this->middleware('permission:almacen-edit', ['only' => ['edit', 'update']]);
         $this->middleware('permission:almacen-delete', ['only' => ['destroy']]);*/
-    }
-    public function query(Request $request)
-    {
-        try {
-            $queryStr = $request->get('query');
-            $responsse = $this->model::where('title', 'LIKE', '%' . $queryStr . '%')
-                ->orWhere('href', 'LIKE', '%' . $queryStr . '%')
-                ->orderBy('id', 'ASC')
-                ->get();
-            $cantidad = count($responsse);
-            $str = strval($cantidad);
-            return ResponseService::success("$str datos encontrados", $responsse);
-        } catch (\Exception $e) {
-            return ResponseService::error($e->getMessage(), '', $e->getCode());
-        }
     }
     /**
      * Display a listing of the resource.

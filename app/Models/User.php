@@ -27,7 +27,6 @@ class User extends Authenticatable
         'telefono',
         'photo_path',
         'tipo_usuario',
-        'tipo_cliente',
         'direccion',
         'password',
         'created_at',

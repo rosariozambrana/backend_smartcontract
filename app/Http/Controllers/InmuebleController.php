@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Http\Controllers\Concerns\HasDynamicQuery;
 use App\Models\Accesorio;
 use App\Models\GaleriaInmueble;
 use App\Models\Inmueble;
@@ -15,6 +16,8 @@ use Inertia\Inertia;
 
 class InmuebleController extends Controller
 {
+    use HasDynamicQuery;
+
     public Inmueble $model;
     public $rutaVisita = 'Inmueble';
     public function __construct()
@@ -22,55 +25,6 @@ class InmuebleController extends Controller
         $this->model = new Inmueble();
     }
 
-    public function query(Request $request)
-    {
-        try {
-            $queryStr = $request->get('query', '');
-            $perPage = $request->get('perPage', 10);
-            $page = $request->get('page', 1);
-            $attributes = $request->get('attributes', ['id']); // Atributos por defecto
-
-            // Obtener los atributos del modelo
-            $modelAttributes = $this->model->getFillable();
-            $modelAttributes[] = 'id';
-            $modelAttributes[] = 'created_at';
-            $modelAttributes[] = 'updated_at';
-
-            // Validar que los atributos estén en la lista de atributos permitidos
-            foreach ($attributes as $attribute) {
-                if (!in_array($attribute, $modelAttributes)) {
-                    return ResponseService::error('Atributo no permitido: ' . $attribute, '', 400);
-                }
-            }
-
-            // Construir la consulta dinámica
-            $query = $this->model::query();
-
-            if (!empty($queryStr)) {
-                $query->where(function ($q) use ($attributes, $queryStr) {
-                    foreach ($attributes as $i => $attribute) {
-                        if (in_array($attribute, ['created_at', 'updated_at'])) {
-                            $method = $i === 0 ? 'whereDate' : 'orWhereDate';
-                            $q->$method($attribute, $queryStr);
-                        } else {
-                            $method = $i === 0 ? 'where' : 'orWhere';
-                            $q->$method($attribute, 'LIKE', '%' . $queryStr . '%');
-                        }
-                    }
-                });
-            }
-            //$response = $query->orderBy('id', 'ASC')->paginate($perPage, ['*'], 'page', $page);
-            $response = $query->orderBy('id', 'ASC')->get();
-            // cantidad de datos encontrados
-            $response->total = $response->count();
-            return ResponseService::success(
-                "{$response->total} datos encontrados con {$queryStr}",
-                $response
-            );
-        } catch (\Exception $e) {
-            return ResponseService::error($e->getMessage(), '', $e->getCode());
-        }
-    }
     /**
      * Display a listing of the resource.
      */

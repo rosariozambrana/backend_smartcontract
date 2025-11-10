@@ -23,7 +23,19 @@ class StoreInmuebleRequest extends FormRequest
     public function rules(): array
     {
         return [
-            //
+            'user_id' => 'required|exists:users,id',
+            'nombre' => 'required|string|max:255|unique:inmuebles,nombre',
+            'direccion' => 'nullable|string|max:500',
+            'ciudad' => 'nullable|string|max:100',
+            'pais' => 'nullable|string|max:100',
+            'detalle' => 'nullable|string|max:1000',
+            'num_habitacion' => 'nullable|string|max:10',
+            'num_piso' => 'nullable|string|max:10',
+            'precio' => 'required|numeric|min:0',
+            'isOcupado' => 'nullable|boolean',
+            'tipo_inmueble_id' => 'nullable|exists:tipo_inmuebles,id',
+            'accesorios' => 'nullable|array',
+            'servicios_basicos' => 'nullable|array',
         ];
     }
 }

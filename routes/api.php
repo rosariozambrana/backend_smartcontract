@@ -11,7 +11,9 @@ use App\Http\Controllers\{AuthenticatedController,
     RolesController,
     SolicitudAlquilerModelController,
     TipoInmuebleController,
-    UserController};
+    UserController,
+    BlockchainController,
+    DeviceController};
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 
@@ -59,6 +61,11 @@ Route::get('/app/inmuebles/{inmueble}/galeria/first', [GaleriaInmuebleController
 Route::delete('/app/inmuebles/{inmueble}/galeria/{imagenId}', [GaleriaInmuebleController::class, 'destroy'])->name('app.inmuebles.galeria.destroy');
 Route::delete('/app/inmuebles/{inmueble}', [InmuebleController::class, 'destroy'])->name('app.inmuebles.destroy');
 
+// Rutas de ubicación y búsqueda de inmuebles
+Route::get('/app/inmuebles/cercanos/buscar', [InmuebleController::class, 'getInmueblesCercanos'])->name('app.inmuebles.cercanos');
+Route::get('/app/inmuebles/mapa/todos', [InmuebleController::class, 'getInmueblesParaMapa'])->name('app.inmuebles.mapa');
+Route::get('/app/inmuebles/ciudad/{ciudad}', [InmuebleController::class, 'getInmueblesPorCiudad'])->name('app.inmuebles.ciudad');
+
 // Ruta solicitudes por cliente
 Route::get('/app/solicitudes-alquiler/cliente/{clienteId}', [SolicitudAlquilerModelController::class, 'solicitudesPorClienteId'])->name('app.solicitudes-alquiler.solicitudesPorClienteId');
 Route::get('/app/solicitudes-alquiler/propietario/{propietarioId}', [SolicitudAlquilerModelController::class, 'solicitudesPorPropietario'])->name('app.solicitudes-alquiler.solicitudesPorPropietario');
@@ -76,6 +83,7 @@ Route::put('/app/pagos/{pago}/blockchain', [PagoController::class, 'updateBlockc
 Route::get('/app/contratos/{contrato}', [ContratoController::class, 'show'])->name('app.contratos.show');
 Route::get('/app/contratos/cliente/{userId}', [ContratoController::class, 'getContratosByClienteId'])->name('app.contratos.cliente');
 Route::get('/app/contratos/propietario/{userId}', [ContratoController::class, 'getContratosByPropietarioId'])->name('app.contratos.propietario');
+Route::get('/app/contratos/{contratoId}/calcular-monto-pago', [BlockchainController::class, 'calcularMontoPago'])->name('app.contratos.calcular.monto');
 Route::put('/app/contratos/{contrato}/estado', [ContratoController::class, 'updateEstado'])->name('app.contratos.update.estado');
 Route::put('/app/contratos/{contrato}/blockchain', [ContratoController::class, 'updateBlockchain'])->name('app.contratos.update.blockchain');
 Route::put('/app/contratos/{contrato}/pago', [ContratoController::class, 'updatePago'])->name('app.contratos.update.pago');
@@ -85,3 +93,42 @@ Route::put('/app/contratos/{contrato}/fecha-pago', [ContratoController::class, '
 //user
 Route::put('/app/users/{user}', [UserController::class, 'update'])->name('app.users.update');
 Route::get('/app/users/{user}', [UserController::class, 'show'])->name('app.users.show');
+Route::get('/app/users/{id}/private-key', [UserController::class, 'getPrivateKey'])->name('app.users.privateKey');
+
+// ============================================================================
+// BLOCKCHAIN ROUTES
+// ============================================================================
+
+// Status and Connection
+Route::get('/app/blockchain/status', [BlockchainController::class, 'status'])->name('app.blockchain.status');
+
+// Wallet Management
+Route::get('/app/blockchain/balance/{userId}', [BlockchainController::class, 'getBalance'])->name('app.blockchain.balance');
+Route::post('/app/blockchain/wallet/assign/{userId}', [BlockchainController::class, 'assignWallet'])->name('app.blockchain.wallet.assign');
+
+// Contract Operations
+Route::post('/app/blockchain/contract/create', [BlockchainController::class, 'createContract'])->name('app.blockchain.contract.create');
+Route::post('/app/blockchain/contract/approve', [BlockchainController::class, 'approveContract'])->name('app.blockchain.contract.approve');
+Route::get('/app/blockchain/contract/{contractId}', [BlockchainController::class, 'getContractDetails'])->name('app.blockchain.contract.details');
+Route::post('/app/blockchain/contract/terminate', [BlockchainController::class, 'terminateContract'])->name('app.blockchain.contract.terminate');
+Route::post('/app/blockchain/contract/check-expiration/{contractId}', [BlockchainController::class, 'checkExpiration'])->name('app.blockchain.contract.expiration');
+
+// Payment Operations
+Route::post('/app/blockchain/payment/create', [BlockchainController::class, 'makePayment'])->name('app.blockchain.payment.create');
+
+// ============================================================================
+// IOT DEVICE ROUTES (migrated from Node.js Socket Server)
+// ============================================================================
+
+
+// Device Registration (for ESP32)
+Route::post('/register-device', [DeviceController::class, 'registerDevice'])->name('device.register');
+
+// Device Control for Properties
+Route::post('/inmuebles/{inmuebleId}/control-dispositivo', [DeviceController::class, 'controlDevice'])->name('device.control');
+
+// Get Devices by Property
+Route::get('/inmuebles/{inmuebleId}/dispositivos', [DeviceController::class, 'getDevicesByProperty'])->name('device.list');
+
+// Assign Device to Property
+Route::post('/inmuebles/{inmuebleId}/dispositivos', [DeviceController::class, 'assignDeviceToProperty'])->name('device.assign');

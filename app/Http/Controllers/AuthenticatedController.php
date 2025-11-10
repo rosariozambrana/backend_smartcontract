@@ -43,13 +43,57 @@ class AuthenticatedController extends Controller
     }
     public function createUser(Request $request)
     {
-        try{
-            $user = User::create($request->all());
-            $user->password = Hash::make($request->password);
-            $user->save();
+        try {
+            // Asignar wallet según el modo blockchain
+            $walletData = $this->assignWallet($request->wallet_address);
+
+            $user = User::create([
+                'name' => $request->name,
+                'email' => $request->email,
+                'usernick' => $request->usernick,
+                'num_id' => $request->num_id,
+                'telefono' => $request->telefono,
+                'direccion' => $request->direccion ?? null,
+                'photo_path' => $request->photo_path ?? null,
+                'tipo_usuario' => $request->tipo_usuario,
+                'password' => Hash::make($request->password),
+                'wallet_address' => $walletData['address'],
+                'wallet_private_key' => $walletData['private_key'],
+            ]);
+
             return ResponseService::success('Usuario creado exitosamente', $user, 201);
         } catch (\Exception $e) {
             return ResponseService::error('Error al crear el usuario', $e->getMessage(), 500);
+        }
+    }
+
+    /**
+     * Asigna wallet según el modo (Ganache o Producción)
+     */
+    private function assignWallet($requestedWallet = null)
+    {
+        $mode = config('blockchain.mode');
+
+        if ($mode === 'ganache') {
+            // MODO DESARROLLO: Asignar wallet de Ganache
+            $wallets = config('blockchain.ganache_wallets');
+
+            // Contar usuarios que ya tienen wallet asignada
+            $assignedCount = User::whereNotNull('wallet_address')->count();
+
+            // Asignar la siguiente wallet disponible (cicla entre 0-9)
+            $walletIndex = $assignedCount % count($wallets);
+
+            return [
+                'address' => $wallets[$walletIndex]['address'],
+                'private_key' => $wallets[$walletIndex]['private_key'],
+            ];
+        } else {
+            // MODO PRODUCCIÓN: Usar wallet enviada desde Flutter
+            return [
+                'address' => $requestedWallet,
+                'private_key' => null, // En producción, Flutter maneja la clave
+            ];
         }
     }
 

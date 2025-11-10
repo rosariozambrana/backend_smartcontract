@@ -1,0 +1,436 @@
+<?php
+
+namespace App\Services\Blockchain;
+
+use App\Models\Contrato;
+use App\Models\User;
+use App\Models\Pago;
+use App\Services\Blockchain\TransactionSigner;
+use Exception;
+use Illuminate\Support\Facades\Log;
+
+class RentalContractService extends BlockchainService
+{
+    /**
+     * Create a new rental contract on blockchain
+     */
+    public function createRentalContract(Contrato $contrato, User $landlord, User $tenant): array
+    {
+        try {
+            // Validate wallet addresses and private keys
+            if (!$landlord->wallet_address || !$landlord->wallet_private_key) {
+                throw new Exception('Landlord must have wallet address and private key');
+            }
+            if (!$tenant->wallet_address) {
+                throw new Exception('Tenant must have wallet address');
+            }
+
+            // Prepare contract parameters
+            $contractId = $contrato->id;
+            $landlordAddress = $landlord->wallet_address;
+            $landlordPrivateKey = $landlord->wallet_private_key; // Auto-decrypted
+            $tenantAddress = $tenant->wallet_address;
+            $propertyId = $contrato->inmueble_id;
+            $rentAmount = $this->etherToWei($contrato->monto);
+            $depositAmount = $this->etherToWei($contrato->monto * 0.5); // 50% deposit
+            $startDate = strtotime($contrato->fecha_inicio);
+            $endDate = strtotime($contrato->fecha_fin);
+            $termsHash = $this->generateTermsHash($contrato);
+
+            Log::info('Creating rental contract on blockchain', [
+                'contract_id' => $contractId,
+                'landlord' => $landlordAddress,
+                'tenant' => $tenantAddress,
+                'rent_amount_wei' => $rentAmount,
+            ]);
+
+            // Encode function call
+            $functionData = $this->contract->getData(
+                'createContract',
+                $contractId,
+                $landlordAddress,
+                $tenantAddress,
+                $propertyId,
+                $rentAmount,
+                $depositAmount,
+                $startDate,
+                $endDate,
+                $termsHash
+            );
+
+            // Get gas price and nonce for landlord's wallet
+            $gasPrice = $this->getGasPrice();
+            $nonce = $this->getNonce($landlordAddress);
+
+            Log::info('Transaction parameters before formatting', [
+                'gas_limit' => config('blockchain.gas_limit'),
+                'gas_price_raw' => $gasPrice,
+                'gas_price_type' => gettype($gasPrice),
+                'nonce' => $nonce,
+                'chain_id' => $this->chainId,
+                'from_wallet' => $landlordAddress,
+                'to_contract' => $this->contractAddress,
+                'function_data_type' => gettype($functionData),
+                'function_data_length' => strlen($functionData ?? ''),
+            ]);
+
+            // Ensure all numeric values are properly converted
+            $gasLimit = intval(config('blockchain.gas_limit', 3000000));
+            $gasPriceInt = intval($gasPrice);
+
+            // Prepare transaction - ALL values must be hex strings with 0x prefix
+            $txData = [
+                'from' => (string)$landlordAddress,
+                'to' => (string)$this->contractAddress,
+                'gas' => '0x' . dechex($gasLimit),
+                'gasPrice' => '0x' . dechex($gasPriceInt),
+                'data' => '0x' . ltrim((string)$functionData, '0x'), // Ensure 0x prefix
+                'nonce' => '0x' . dechex($nonce),
+                'chainId' => '0x' . dechex($this->chainId),
+            ];
+
+            Log::info('Transaction data formatted', [
+                'from' => $txData['from'],
+                'to' => $txData['to'],
+                'gas' => $txData['gas'],
+                'gasPrice' => $txData['gasPrice'],
+                'data_length' => strlen($txData['data']),
+                'data_starts' => substr($txData['data'], 0, 20) . '...',
+                'nonce' => $txData['nonce'],
+                'chainId' => $txData['chainId'],
+                'full_tx_data' => $txData, // Log complete data
+            ]);
+
+            // Sign the transaction with landlord's private key
+            $signedTx = TransactionSigner::signTransaction($txData, $landlordPrivateKey, $this->chainId);
+
+            Log::info('Transaction signed', [
+                'signed_tx_length' => strlen($signedTx),
+                'signed_tx_preview' => substr($signedTx, 0, 100) . '...'
+            ]);
+
+            // Send the signed transaction
+            $txHash = $this->sendRawTransaction($signedTx);
+
+            if (!$txHash) {
+                throw new Exception('Failed to send transaction');
+            }
+
+            // Wait for confirmation
+            $receipt = $this->waitForReceipt($txHash);
+
+            if (!$receipt || $receipt['status'] !== 'success') {
+                throw new Exception('Transaction failed or timed out');
+            }
+
+            Log::info('Rental contract created successfully on blockchain', [
+                'contract_id' => $contractId,
+                'tx_hash' => $txHash,
+                'block_number' => $receipt['block_number'],
+            ]);
+
+            return [
+                'success' => true,
+                'tx_hash' => $txHash,
+                'block_number' => $receipt['block_number'],
+                'gas_used' => $receipt['gas_used'],
+                'contract_id' => $contractId,
+            ];
+
+        } catch (Exception $e) {
+            Log::error('Failed to create rental contract on blockchain', [
+                'contract_id' => $contrato->id,
+                'error' => $e->getMessage(),
+            ]);
+
+            return [
+                'success' => false,
+                'error' => $e->getMessage(),
+            ];
+        }
+    }
+
+    /**
+     * Approve contract (by tenant)
+     */
+    public function approveContract(int $contractId, User $tenant): array
+    {
+        try {
+            // Validate tenant has wallet and private key
+            if (!$tenant->wallet_address || !$tenant->wallet_private_key) {
+                throw new Exception('Tenant must have wallet address and private key');
+            }
+
+            $tenantWalletAddress = $tenant->wallet_address;
+            $privateKey = $tenant->wallet_private_key; // Auto-decrypted
+
+            Log::info('Approving contract on blockchain', [
+                'contract_id' => $contractId,
+                'tenant_wallet' => $tenantWalletAddress,
+            ]);
+
+            $functionData = $this->contract->getData('approveContract', $contractId);
+
+            // Get gas price and nonce
+            $gasPrice = $this->getGasPrice();
+            $nonce = $this->getNonce($tenantWalletAddress);
+
+            // Ensure all numeric values are properly converted
+            $gasLimit = intval(config('blockchain.gas_limit', 3000000));
+            $gasPriceInt = intval($gasPrice);
+
+            $txData = [
+                'from' => (string)$tenantWalletAddress,
+                'to' => (string)$this->contractAddress,
+                'gas' => '0x' . dechex($gasLimit),
+                'gasPrice' => '0x' . dechex($gasPriceInt),
+                'data' => '0x' . ltrim((string)$functionData, '0x'), // Ensure 0x prefix
+                'nonce' => '0x' . dechex($nonce),
+                'chainId' => '0x' . dechex($this->chainId),
+            ];
+
+            // Sign the transaction with tenant's private key
+            $signedTx = TransactionSigner::signTransaction($txData, $privateKey, $this->chainId);
+
+            // Send the signed transaction
+            $txHash = $this->sendRawTransaction($signedTx);
+
+            if (!$txHash) {
+                throw new Exception('Failed to send transaction');
+            }
+
+            $receipt = $this->waitForReceipt($txHash);
+
+            return [
+                'success' => true,
+                'tx_hash' => $txHash,
+                'block_number' => $receipt['block_number'] ?? null,
+            ];
+
+        } catch (Exception $e) {
+            Log::error('Failed to approve contract', [
+                'contract_id' => $contractId,
+                'error' => $e->getMessage(),
+            ]);
+
+            return [
+                'success' => false,
+                'error' => $e->getMessage(),
+            ];
+        }
+    }
+
+    /**
+     * Make a payment for rental contract
+     */
+    public function makePayment(int $contractId, float $amount, User $tenant): array
+    {
+        try {
+            // Validate tenant has wallet and private key
+            if (!$tenant->wallet_address || !$tenant->wallet_private_key) {
+                throw new Exception('Tenant must have wallet address and private key');
+            }
+
+            $amountWei = $this->etherToWei($amount);
+            $tenantWalletAddress = $tenant->wallet_address;
+            $privateKey = $tenant->wallet_private_key; // Auto-decrypted by Laravel
+
+            // Check tenant balance before attempting payment
+            $balanceWei = $this->getBalance($tenantWalletAddress);
+            $balanceEth = $this->weiToEther($balanceWei);
+
+            // Calculate gas cost estimate
+            $gasPrice = $this->getGasPrice();
+            $gasLimit = config('blockchain.gas_limit', 3000000);
+            $estimatedGasCostWei = $gasPrice * $gasLimit;
+            $totalRequiredWei = $amountWei + $estimatedGasCostWei;
+
+            if ($balanceWei < $totalRequiredWei) {
+                $totalRequiredEth = $this->weiToEther($totalRequiredWei);
+                throw new Exception(sprintf(
+                    'Insufficient balance. Required: %s ETH (including gas), Available: %s ETH',
+                    number_format($totalRequiredEth, 6),
+                    number_format($balanceEth, 6)
+                ));
+            }
+
+            Log::info('Making blockchain payment', [
+                'contract_id' => $contractId,
+                'tenant_wallet' => $tenantWalletAddress,
+                'amount' => $amount,
+                'amount_wei' => $amountWei,
+                'balance_eth' => $balanceEth,
+                'estimated_gas_cost_eth' => $this->weiToEther($estimatedGasCostWei),
+            ]);
+
+            $functionData = $this->contract->getData('makePayment', $contractId);
+
+            $txData = [
+                'from' => $tenantWalletAddress,
+                'to' => $this->contractAddress,
+                'value' => '0x' . dechex($amountWei),
+                'gas' => '0x' . dechex(config('blockchain.gas_limit')),
+                'gasPrice' => '0x' . dechex($this->getGasPrice()),
+                'data' => '0x' . ltrim((string)$functionData, '0x'), // Ensure 0x prefix
+                'nonce' => '0x' . dechex($this->getNonce($tenantWalletAddress)),
+                'chainId' => '0x' . dechex($this->chainId),
+            ];
+
+            // Sign the transaction with tenant's private key
+            $signedTx = TransactionSigner::signTransaction($txData, $privateKey, $this->chainId);
+
+            Log::info('Transaction signed, sending to blockchain', [
+                'signed_tx_length' => strlen($signedTx)
+            ]);
+
+            // Send the signed transaction
+            $txHash = $this->sendRawTransaction($signedTx);
+
+            if (!$txHash) {
+                throw new Exception('Failed to send payment transaction to blockchain network');
+            }
+
+            Log::info('Transaction sent, waiting for confirmation', [
+                'tx_hash' => $txHash
+            ]);
+
+            // Wait for transaction confirmation
+            $receipt = $this->waitForReceipt($txHash);
+
+            // Validate transaction was successful
+            if (!$receipt) {
+                throw new Exception('Transaction confirmation timeout. Check tx_hash: ' . $txHash);
+            }
+
+            if (isset($receipt['status']) && $receipt['status'] !== 'success') {
+                throw new Exception('Transaction failed on blockchain. Tx hash: ' . $txHash);
+            }
+
+            Log::info('Payment made successfully', [
+                'contract_id' => $contractId,
+                'amount' => $amount,
+                'tx_hash' => $txHash,
+                'block_number' => $receipt['block_number'] ?? null,
+                'gas_used' => $receipt['gas_used'] ?? null,
+            ]);
+
+            return [
+                'success' => true,
+                'tx_hash' => $txHash,
+                'block_number' => $receipt['block_number'] ?? null,
+                'gas_used' => $receipt['gas_used'] ?? null,
+                'amount' => $amount,
+            ];
+
+        } catch (Exception $e) {
+            Log::error('Failed to make payment', [
+                'contract_id' => $contractId,
+                'amount' => $amount,
+                'tenant_wallet' => $tenantWalletAddress ?? 'unknown',
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString(),
+            ]);
+
+            return [
+                'success' => false,
+                'error' => $e->getMessage(),
+            ];
+        }
+    }
+
+    /**
+     * Terminate contract
+     */
+    public function terminateContract(int $contractId, string $reason, string $callerWalletAddress): array
+    {
+        try {
+            $functionData = $this->contract->getData('terminateContract', $contractId, $reason);
+
+            $txData = [
+                'from' => $callerWalletAddress,
+                'to' => $this->contractAddress,
+                'gas' => '0x' . dechex(config('blockchain.gas_limit')),
+                'gasPrice' => '0x' . dechex($this->getGasPrice()),
+                'data' => '0x' . ltrim((string)$functionData, '0x'), // Ensure 0x prefix
+                'nonce' => '0x' . dechex($this->getNonce($callerWalletAddress)),
+                'chainId' => '0x' . dechex($this->chainId),
+            ];
+
+            $txHash = $this->sendTransaction($txData);
+
+            if (!$txHash) {
+                throw new Exception('Failed to terminate contract');
+            }
+
+            $receipt = $this->waitForReceipt($txHash);
+
+            return [
+                'success' => true,
+                'tx_hash' => $txHash,
+                'block_number' => $receipt['block_number'] ?? null,
+            ];
+
+        } catch (Exception $e) {
+            Log::error('Failed to terminate contract', [
+                'contract_id' => $contractId,
+                'error' => $e->getMessage(),
+            ]);
+
+            return [
+                'success' => false,
+                'error' => $e->getMessage(),
+            ];
+        }
+    }
+
+    /**
+     * Check if contract has expired
+     */
+    public function checkExpiration(int $contractId): array
+    {
+        try {
+            $functionData = $this->contract->getData('checkExpiration', $contractId);
+
+            $txData = [
+                'from' => $this->walletAddress,
+                'to' => $this->contractAddress,
+                'gas' => '0x' . dechex(config('blockchain.gas_limit')),
+                'gasPrice' => '0x' . dechex($this->getGasPrice()),
+                'data' => '0x' . ltrim((string)$functionData, '0x'), // Ensure 0x prefix
+                'nonce' => '0x' . dechex($this->getNonce()),
+                'chainId' => '0x' . dechex($this->chainId),
+            ];
+
+            $txHash = $this->sendTransaction($txData);
+
+            return [
+                'success' => true,
+                'tx_hash' => $txHash,
+            ];
+
+        } catch (Exception $e) {
+            return [
+                'success' => false,
+                'error' => $e->getMessage(),
+            ];
+        }
+    }
+
+    /**
+     * Generate IPFS-like hash for contract terms
+     * In production, this should upload to IPFS and return actual hash
+     */
+    protected function generateTermsHash(Contrato $contrato): string
+    {
+        $terms = [
+            'inmueble_id' => $contrato->inmueble_id,
+            'monto' => $contrato->monto,
+            'fecha_inicio' => $contrato->fecha_inicio,
+            'fecha_fin' => $contrato->fecha_fin,
+            'detalle' => $contrato->detalle,
+            'condicionales' => $contrato->condicionales,
+        ];
+
+        return 'Qm' . hash('sha256', json_encode($terms));
+    }
+}

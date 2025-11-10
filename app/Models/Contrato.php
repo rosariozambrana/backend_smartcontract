@@ -15,7 +15,7 @@ class Contrato extends Model
     protected $fillable = [
         'inmueble_id',
         'user_id',
-        'solicitud_id',
+        'solicitud_alquiler_id',
         'fecha_inicio',
         'fecha_fin',
         'fecha_pago',

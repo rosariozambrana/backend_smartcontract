@@ -57,10 +57,80 @@ class UserController extends Controller
     public function store(StoreUserRequest $request)
     {
         try {
-            $data = $this->model::create($request->all());
+            // Asignar wallet según el modo
+            $walletData = $this->assignWallet($request->wallet_address);
+
+            $data = $this->model::create([
+                'name' => $request->name,
+                'email' => $request->email,
+                'usernick' => $request->usernick,
+                'num_id' => $request->num_id,
+                'telefono' => $request->telefono,
+                'photo_path' => $request->photo_path,
+                'tipo_usuario' => $request->tipo_usuario,
+                'password' => $request->password,
+                'wallet_address' => $walletData['address'],
+                'wallet_private_key' => $walletData['private_key'],
+            ]);
+            
             return ResponseService::success('Registro guardado correctamente', $data);
         } catch (\Exception $e) {
             return ResponseService::error('Error al guardar el registro', $e->getMessage());
+        }
+    }
+
+    /**
+     * Asigna wallet según el modo (Ganache o Producción)
+     */
+    private function assignWallet($requestedWallet = null)
+    {
+        $mode = config('blockchain.mode');
+
+        if ($mode === 'ganache') {
+            // MODO DESARROLLO: Asignar wallet de Ganache
+            $wallets = config('blockchain.ganache_wallets');
+
+            // Contar usuarios que ya tienen wallet asignada
+            $assignedCount = User::whereNotNull('wallet_address')->count();
+
+            // Asignar la siguiente wallet disponible (cicla entre 0-9)
+            $walletIndex = $assignedCount % count($wallets);
+
+            return [
+                'address' => $wallets[$walletIndex]['address'],
+                'private_key' => $wallets[$walletIndex]['private_key'],
+            ];
+        } else {
+            // MODO PRODUCCIÓN: Usar wallet enviada desde Flutter
+            return [
+                'address' => $requestedWallet,
+                'private_key' => null, // En producción, Flutter maneja la clave
+            ];
+        }
+    }
+
+    /**
+     * Obtener la private key de un usuario (SOLO en modo Ganache)
+     * 
+     * @param int $id
+     * @return \Illuminate\Http\JsonResponse
+     */
+    public function getPrivateKey($id)
+    {
+        try {
+            // Verificar que estamos en modo Ganache
+            if (config('blockchain.mode') !== 'ganache') {
+                return ResponseService::error('Private keys solo están disponibles en modo Ganache', '', 403);
+            }
+
+            $user = User::findOrFail($id);
+
+            return ResponseService::success('Private key obtenida correctamente', [
+                'wallet_address' => $user->wallet_address,
+                'wallet_private_key' => $user->wallet_private_key,
+            ]);
+        } catch (\Exception $e) {
+            return ResponseService::error('Error al obtener private key', $e->getMessage());
         }
     }
 
@@ -88,6 +158,7 @@ class UserController extends Controller
                 'usernick' => $request->input('usernick'),
                 'num_id' => $request->input('num_id'),
                 'telefono' => $request->input('telefono'),
+                'wallet_address' => $request->input('wallet_address'),
                 'direccion' => $request->input('direccion'),
             ]);
             return ResponseService::success('Registro actualizado correctamente', $user);

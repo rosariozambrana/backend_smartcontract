@@ -21,7 +21,7 @@ class Pago extends Model
         'created_at',
         'updated_at'
     ];
-    public function contratos()
+    public function contrato()
     {
         return $this->belongsTo(Contrato::class, 'contrato_id');
     }

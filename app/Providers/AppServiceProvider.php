@@ -12,7 +12,18 @@ class AppServiceProvider extends ServiceProvider
      */
     public function register(): void
     {
-        //
+        // Register Blockchain services as singletons to prevent memory leaks
+        $this->app->singleton(\App\Services\Blockchain\BlockchainService::class, function ($app) {
+            return new \App\Services\Blockchain\BlockchainService();
+        });
+
+        $this->app->singleton(\App\Services\Blockchain\RentalContractService::class, function ($app) {
+            return new \App\Services\Blockchain\RentalContractService();
+        });
+
+        $this->app->singleton(\App\Services\Blockchain\WalletService::class, function ($app) {
+            return new \App\Services\Blockchain\WalletService();
+        });
     }
 
     /**

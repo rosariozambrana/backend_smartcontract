@@ -23,11 +23,11 @@ class User extends Authenticatable
         'email',
         'usernick',
         'wallet_address',
+        'wallet_private_key',
         'num_id',
         'telefono',
         'photo_path',
         'tipo_usuario',
-        'direccion',
         'password',
         'created_at',
         'updated_at',
@@ -41,5 +41,20 @@ class User extends Authenticatable
     protected $hidden = [
         'password',
         'remember_token',
+        'wallet_private_key',
     ];
+
+    /**
+     * Get the attributes that should be cast.
+     *
+     * @return array<string, string>
+     */
+    protected function casts(): array
+    {
+        return [
+            'email_verified_at' => 'datetime',
+            'password' => 'hashed',
+            'wallet_private_key' => 'encrypted',
+        ];
+    }
 }

@@ -139,7 +139,7 @@ class PagoController extends Controller
     public function getPagosContratoCliente($userId)
     {
         try {
-            $pagos = Pago::whereHas('contratos', function ($query) use ($userId) {
+            $pagos = Pago::whereHas('contrato', function ($query) use ($userId) {
                 $query->where('user_id', $userId);
             })->get();
             return ResponseService::success('Pagos obtenidos correctamente', $pagos);
@@ -151,7 +151,7 @@ class PagoController extends Controller
     public function getPagosPendientesCliente($userId)
     {
         try {
-            $pagos = Pago::whereHas('contratos', function ($query) use ($userId) {
+            $pagos = Pago::whereHas('contrato', function ($query) use ($userId) {
                 $query->where('user_id', $userId);
             })->where('estado', 'pendiente')->get();
             return ResponseService::success('Pagos pendientes obtenidos correctamente', $pagos);
@@ -162,7 +162,7 @@ class PagoController extends Controller
     public function getPagosCompletadosCliente($userId)
     {
         try {
-            $pagos = Pago::whereHas('contratos', function ($query) use ($userId) {
+            $pagos = Pago::whereHas('contrato', function ($query) use ($userId) {
                 $query->where('user_id', $userId);
             })->where('estado', 'aprobado')->get();
             return ResponseService::success('Pagos completados obtenidos correctamente', $pagos);

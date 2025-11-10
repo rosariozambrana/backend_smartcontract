@@ -15,6 +15,9 @@ class Inmueble extends Model
     protected $fillable = [
         'user_id',
         'nombre',
+        'direccion',
+        'ciudad',
+        'pais',
         'detalle',
         'num_habitacion',
         'num_piso',

@@ -22,3 +22,18 @@ yarn-error.log
 /.nova
 /.vscode
 /.zed
+ENDPOINTS_BLOCKCHAIN.md
+ENDPOINTS_GOOGLE_MAPS.md
+FLUJO_BACKEND_ACTUALIZADO.md
+README_WEBSOCKETS_MIGRATION.md
+TEST_WALLET_ASSIGNMENT.md
+
+# Blockchain deployment node_modules
+blockchain-deployment/node_modules/
+
+# Archivos de respaldo
+*.backup
+*.bak
+
+# Claude AI
+.claude/

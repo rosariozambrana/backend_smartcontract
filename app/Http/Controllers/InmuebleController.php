@@ -58,6 +58,9 @@ class InmuebleController extends Controller
             $data = $this->model::create([
                 'user_id' => $request->user_id,
                 'nombre' => $request->nombre,
+                'direccion' => $request->direccion,
+                'ciudad' => $request->ciudad,
+                'pais' => $request->pais ?? 'Bolivia',
                 'detalle' => $request->detalle,
                 'num_habitacion' => $request->num_habitacion,
                 'num_piso' => $request->num_piso,
@@ -138,7 +141,7 @@ class InmuebleController extends Controller
     public function getInmueblesByPropietario($userId)
     {
         try {
-            $inmuebles = $this->model::where('user_id', $userId)->get();
+            $inmuebles = $this->model::where('user_id', $userId)->with('galeria')->get();
             return ResponseService::success('Inmuebles encontrados', $inmuebles);
         } catch (\Exception $e) {
             return ResponseService::error($e->getMessage(), '', $e->getCode());
@@ -225,6 +228,71 @@ class InmuebleController extends Controller
             }
         } catch (\Exception $e) {
             return ResponseService::error($e->getMessage(), '', $e->getCode());
+        }
+    }
+
+    // Buscar inmuebles cercanos a una ubicación
+    public function getInmueblesCercanos(Request $request)
+    {
+        try {
+            $latitude = $request->input('latitude');
+            $longitude = $request->input('longitude');
+            $radio = $request->input('radio', 5); // Radio en kilómetros, por defecto 5km
+
+            if (!$latitude || !$longitude) {
+                return ResponseService::error('Latitud y longitud son requeridos', '', 400);
+            }
+
+            // Fórmula Haversine para calcular distancia entre dos puntos GPS
+            // 6371 es el radio de la Tierra en kilómetros
+            $inmuebles = $this->model::selectRaw("
+                    *,
+                    (6371 * acos(cos(radians(?))
+                    * cos(radians(latitude))
+                    * cos(radians(longitude) - radians(?))
+                    + sin(radians(?))
+                    * sin(radians(latitude)))) AS distancia
+                ", [$latitude, $longitude, $latitude])
+                ->having('distancia', '<=', $radio)
+                ->orderBy('distancia', 'asc')
+                ->with(['user', 'tipoInmueble', 'imagenes'])
+                ->get();
+
+            return ResponseService::success('Inmuebles cercanos encontrados', $inmuebles);
+        } catch (\Exception $e) {
+            return ResponseService::error('Error al buscar inmuebles cercanos', $e->getMessage());
+        }
+    }
+
+    // Obtener todos los inmuebles con ubicación para mostrar en mapa
+    public function getInmueblesParaMapa()
+    {
+        try {
+            $inmuebles = $this->model::whereNotNull('latitude')
+                ->whereNotNull('longitude')
+                ->where('isOcupado', false)
+                ->with(['user', 'tipoInmueble'])
+                ->select('id', 'nombre', 'direccion', 'latitude', 'longitude', 'precio', 'ciudad', 'num_habitacion')
+                ->get();
+
+            return ResponseService::success('Inmuebles para mapa obtenidos correctamente', $inmuebles);
+        } catch (\Exception $e) {
+            return ResponseService::error('Error al obtener inmuebles para mapa', $e->getMessage());
+        }
+    }
+
+    // Buscar inmuebles por ciudad
+    public function getInmueblesPorCiudad($ciudad)
+    {
+        try {
+            $inmuebles = $this->model::where('ciudad', 'LIKE', "%{$ciudad}%")
+                ->where('isOcupado', false)
+                ->with(['user', 'tipoInmueble', 'imagenes'])
+                ->get();
+
+            return ResponseService::success('Inmuebles encontrados en ' . $ciudad, $inmuebles);
+        } catch (\Exception $e) {
+            return ResponseService::error('Error al buscar inmuebles por ciudad', $e->getMessage());
         }
     }
 }

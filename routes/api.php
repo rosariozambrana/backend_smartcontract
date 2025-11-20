@@ -6,6 +6,7 @@ use App\Http\Controllers\{AuthenticatedController,
     InmuebleController,
     InmuebleDeviceController,
     MenuController,
+    PredictionController,
     PagoController,
     PermissionsController,
     RolesController,
@@ -76,6 +77,8 @@ Route::get('/app/pagos/contrato/{contratoId}', [PagoController::class, 'getPagos
 Route::get('/app/pagos/cliente/{userId}', [PagoController::class, 'getPagosContratoCliente'])->name('app.pagos.contrato.cliente');
 Route::get('/app/pagos/pendientes/cliente/{userId}', [PagoController::class, 'getPagosPendientesCliente'])->name('app.pagos.pendientes.cliente');
 Route::get('/app/pagos/completados/cliente/{userId}', [PagoController::class, 'getPagosCompletadosCliente'])->name('app.pagos.completados.cliente');
+Route::get('/app/pagos/pendientes/propietario/{propietarioId}', [PagoController::class, 'getPagosPendientesPropietario'])->name('app.pagos.pendientes.propietario');
+Route::get('/app/pagos/completados/propietario/{propietarioId}', [PagoController::class, 'getPagosCompletadosPropietario'])->name('app.pagos.completados.propietario');
 Route::put('/app/pagos/{pago}/estado', [PagoController::class, 'updateEstado'])->name('app.pagos.update.estado');
 Route::put('/app/pagos/{pago}/blockchain', [PagoController::class, 'updateBlockchain'])->name('app.pagos.update.blockchain');
 
@@ -132,3 +135,22 @@ Route::get('/inmuebles/{inmuebleId}/dispositivos', [DeviceController::class, 'ge
 
 // Assign Device to Property
 Route::post('/inmuebles/{inmuebleId}/dispositivos', [DeviceController::class, 'assignDeviceToProperty'])->name('device.assign');
+
+// ============================================================================
+// ML PREDICTION ROUTES
+// ============================================================================
+Route::prefix('/app/ml')->group(function () {
+    Route::get('/status', [PredictionController::class, 'status'])->name('app.ml.status');
+});
+
+Route::post('/app/predecir-precio', [PredictionController::class, 'predecirPrecio'])->name('app.predecir.precio');
+Route::post('/app/inmuebles/{inmueble}/predecir', [PredictionController::class, 'predecirYGuardar'])->name('app.inmueble.predecir');
+
+// Rutas ML para Flutter App
+Route::post('/inmuebles/predict-price', [InmuebleController::class, 'predictPrice'])->name('api.inmuebles.predict');
+Route::get('/inmuebles/ml-status', [InmuebleController::class, 'mlStatus'])->name('api.inmuebles.ml.status');
+
+// ============================================================================
+// HEATMAP ROUTE
+// ============================================================================
+Route::get('/app/inmuebles/mapa-calor', [InmuebleController::class, 'getHeatmapData'])->name('app.inmuebles.mapa.calor');

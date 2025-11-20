@@ -21,6 +21,11 @@ class Pago extends Model
         'created_at',
         'updated_at'
     ];
+
+    protected $casts = [
+        'historial_acciones' => 'array',
+    ];
+
     public function contrato()
     {
         return $this->belongsTo(Contrato::class, 'contrato_id');

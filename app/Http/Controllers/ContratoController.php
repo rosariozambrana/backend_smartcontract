@@ -388,7 +388,9 @@ class ContratoController extends Controller
     public function getContratosByClienteId($userId)
     {
         try {
-            $contratos = $this->model::where('user_id', $userId)->get();
+            $contratos = $this->model::where('user_id', $userId)
+                ->with(['user', 'inmueble'])
+                ->get();
             return ResponseService::success('Contratos obtenidos correctamente', $contratos);
         } catch (\Exception $e) {
             return ResponseService::error('Error al obtener los contratos', $e->getMessage());

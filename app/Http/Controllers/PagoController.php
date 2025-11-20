@@ -164,7 +164,7 @@ class PagoController extends Controller
         try {
             $pagos = Pago::whereHas('contrato', function ($query) use ($userId) {
                 $query->where('user_id', $userId);
-            })->where('estado', 'aprobado')->get();
+            })->where('estado', 'pagado')->get();
             return ResponseService::success('Pagos completados obtenidos correctamente', $pagos);
         } catch (\Exception $e) {
             return ResponseService::error('Error al obtener los pagos completados', $e->getMessage());
@@ -196,6 +196,48 @@ class PagoController extends Controller
             return ResponseService::success('Datos de blockchain actualizados correctamente', $pago);
         } catch (\Exception $e) {
             return ResponseService::error('Error al actualizar los datos de blockchain', $e->getMessage());
+        }
+    }
+
+    /**
+     * Get pending payments for property owner (pagos que le deben)
+     * GET /api/app/pagos/pendientes/propietario/{propietarioId}
+     */
+    public function getPagosPendientesPropietario($propietarioId)
+    {
+        try {
+            $pagos = Pago::whereHas('contrato.inmueble', function ($query) use ($propietarioId) {
+                $query->where('user_id', $propietarioId);
+            })
+            ->where('estado', 'pendiente')
+            ->with(['contrato.inmueble', 'contrato.user'])
+            ->orderBy('fecha_pago', 'asc') // Más urgentes primero
+            ->get();
+
+            return ResponseService::success('Pagos pendientes del propietario obtenidos correctamente', $pagos);
+        } catch (\Exception $e) {
+            return ResponseService::error('Error al obtener los pagos pendientes del propietario', $e->getMessage());
+        }
+    }
+
+    /**
+     * Get completed/received payments for property owner (pagos que ya recibió)
+     * GET /api/app/pagos/completados/propietario/{propietarioId}
+     */
+    public function getPagosCompletadosPropietario($propietarioId)
+    {
+        try {
+            $pagos = Pago::whereHas('contrato.inmueble', function ($query) use ($propietarioId) {
+                $query->where('user_id', $propietarioId);
+            })
+            ->where('estado', 'pagado')
+            ->with(['contrato.inmueble', 'contrato.user'])
+            ->orderBy('fecha_pago', 'desc') // Más recientes primero
+            ->get();
+
+            return ResponseService::success('Pagos completados del propietario obtenidos correctamente', $pagos);
+        } catch (\Exception $e) {
+            return ResponseService::error('Error al obtener los pagos completados del propietario', $e->getMessage());
         }
     }
 }

@@ -13,6 +13,7 @@ use App\Services\ResponseService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Inertia\Inertia;
+use Illuminate\Support\Facades\DB;
 
 class InmuebleController extends Controller
 {
@@ -68,7 +69,14 @@ class InmuebleController extends Controller
                 'isOcupado' => $request->isOcupado,
                 'tipo_inmueble_id' => $request->tipo_inmueble_id, // Relación con tipo_inmuebles
                 'accesorios' => json_encode($request->accesorios ?? []),
-                'servicios_basicos' => json_encode($request->servicios_basicos ?? [])
+                'servicios_basicos' => json_encode($request->servicios_basicos ?? []),
+                // Campos ML
+                'latitude' => $request->latitude,
+                'longitude' => $request->longitude,
+                'metros_cuadrados' => $request->metros_cuadrados,
+                'num_banos' => $request->num_banos,
+                'anillo' => $request->anillo,
+                'zona_especial' => $request->zona_especial,
             ]);
             return ResponseService::success('Registro guardado correctamente', $data);
         } catch (\Exception $e) {
@@ -293,6 +301,117 @@ class InmuebleController extends Controller
             return ResponseService::success('Inmuebles encontrados en ' . $ciudad, $inmuebles);
         } catch (\Exception $e) {
             return ResponseService::error('Error al buscar inmuebles por ciudad', $e->getMessage());
+        }
+    }
+
+    /**
+     * Obtener datos para mapa de calor
+     * GET /api/app/inmuebles/mapa-calor
+     */
+    public function getHeatmapData()
+    {
+        try {
+            $zonas = $this->model::select(
+                DB::raw('ROUND(latitude, 3) as lat'),
+                DB::raw('ROUND(longitude, 3) as lon'),
+                DB::raw('AVG(precio) as precio_promedio'),
+                DB::raw('COUNT(*) as total_inmuebles'),
+                DB::raw('MIN(precio) as precio_min'),
+                DB::raw('MAX(precio) as precio_max')
+            )
+            ->whereNotNull('latitude')
+            ->whereNotNull('longitude')
+            ->where('isOcupado', false)
+            ->groupBy('lat', 'lon')
+            ->having('total_inmuebles', '>=', 2)
+            ->orderBy('precio_promedio', 'desc')
+            ->get();
+
+            return ResponseService::success('Datos de mapa de calor obtenidos', $zonas);
+        } catch (\Exception $e) {
+            return ResponseService::error('Error al obtener datos del mapa de calor', $e->getMessage());
+        }
+    }
+
+    /**
+     * Predice el precio de un inmueble usando ML
+     *
+     * @param Request $request
+     * @return \Illuminate\Http\JsonResponse
+     */
+    public function predictPrice(Request $request)
+    {
+        try {
+            $validated = $request->validate([
+                'latitud' => 'required|numeric',
+                'longitud' => 'required|numeric',
+                'metros_cuadrados' => 'required|numeric|min:10',
+                'num_habitacion' => 'required|integer|min:1',
+                'num_banos' => 'required|integer|min:1',
+                'tiene_parking' => 'required|boolean',
+                'tiene_piscina' => 'required|boolean',
+            ]);
+
+            $mlService = new \App\Services\ML\MLPredictionService();
+
+            // Verificar que el servicio ML esté disponible
+            if (!$mlService->checkHealth()) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'El servicio ML no está disponible. Asegúrate de que Python ML esté ejecutándose en puerto 5000.'
+                ], 503);
+            }
+
+            $prediccion = $mlService->predecirPrecio($validated);
+
+            if ($prediccion) {
+                return response()->json([
+                    'success' => true,
+                    'data' => $prediccion
+                ]);
+            }
+
+            return response()->json([
+                'success' => false,
+                'message' => 'No se pudo obtener la predicción'
+            ], 500);
+
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Datos inválidos',
+                'errors' => $e->errors()
+            ], 422);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Error al predecir precio: ' . $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
+     * Verifica el estado del servicio ML
+     *
+     * @return \Illuminate\Http\JsonResponse
+     */
+    public function mlStatus()
+    {
+        try {
+            $mlService = new \App\Services\ML\MLPredictionService();
+            $isHealthy = $mlService->checkHealth();
+
+            return response()->json([
+                'success' => true,
+                'status' => $isHealthy ? 'online' : 'offline',
+                'message' => $isHealthy ? 'Servicio ML disponible' : 'Servicio ML no disponible'
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'status' => 'error',
+                'message' => $e->getMessage()
+            ], 500);
         }
     }
 }

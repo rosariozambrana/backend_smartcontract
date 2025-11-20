@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\SolicitudAlquilerModel;
+use App\Models\Inmueble;
 use App\Http\Requests\StoreSolicitudAlquilerModelRequest;
 use App\Http\Requests\UpdateSolicitudAlquilerModelRequest;
 use App\Services\ResponseService;
@@ -33,7 +34,7 @@ class SolicitudAlquilerModelController extends Controller
     public function store(Request $request)
     {
             // Validar que el inmueble no esté ocupado
-            $inmueble = AppModelsInmueble::find($request->inmueble_id);
+            $inmueble = Inmueble::find($request->inmueble_id);
 
             if (!$inmueble) {
                 return ResponseService::error('Inmueble no encontrado', [], 404);

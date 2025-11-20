@@ -18,15 +18,36 @@ class Inmueble extends Model
         'direccion',
         'ciudad',
         'pais',
+        'latitude',
+        'longitude',
         'detalle',
         'num_habitacion',
+        'num_banos',
+        'metros_cuadrados',
         'num_piso',
         'precio',
+        'anillo',
+        'zona_especial',
+        'precio_sugerido_ml',
+        'precio_min_ml',
+        'precio_max_ml',
+        'confianza_ml',
+        'ultima_prediccion',
         'isOcupado',
         'accesorios',
         'servicios_basicos',
         'tipo_inmueble_id', // Relación con tipo_inmuebles
     ];
+
+    protected $casts = [
+        'precio' => 'decimal:2',
+        'precio_sugerido_ml' => 'decimal:2',
+        'precio_min_ml' => 'decimal:2',
+        'precio_max_ml' => 'decimal:2',
+        'confianza_ml' => 'decimal:2',
+        'ultima_prediccion' => 'datetime',
+    ];
+
     public function user()
     {
         return $this->belongsTo(User::class, 'user_id', 'id');
@@ -59,3 +80,4 @@ class Inmueble extends Model
         return $this->hasMany(SolicitudAlquilerModel::class, 'inmueble_id', 'id');
     }
 }
+

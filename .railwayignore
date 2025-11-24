@@ -1,0 +1,12 @@
+node_modules/
+tests/
+.git/
+.github/
+*.md
+README.md
+.env.example
+storage/logs/*.log
+ml_service/
+landing-page/
+blockchain-deployment/
+vendor/laravel/sail/

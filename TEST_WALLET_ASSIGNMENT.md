@@ -14,7 +14,7 @@ Usuario ID 4 (Test Debug):  0xF1e47ba25902e475f490A9876B53c30b2F7E4214
 ### 1. Probar endpoint de registro (/app/create/user):
 
 ```bash
-curl -X POST "http://192.168.100.9:8000/api/app/create/user" \
+curl -X POST "http://192.168.180.149:8000/api/app/create/user" \
   -H "Content-Type: application/json" \
   -d '{
     "name": "Test Registro",
@@ -35,7 +35,7 @@ curl -X POST "http://192.168.100.9:8000/api/app/create/user" \
 ### 2. Probar endpoint admin (/app/users/store):
 
 ```bash
-curl -X POST "http://192.168.100.9:8000/api/app/users/store" \
+curl -X POST "http://192.168.180.149:8000/api/app/users/store" \
   -H "Content-Type: application/json" \
   -d '{
     "name": "Test Admin",
@@ -79,10 +79,10 @@ php artisan db:seed
 
 ```bash
 # Usuario 1
-curl -X GET "http://192.168.100.9:8000/api/app/users/1/private-key"
+curl -X GET "http://192.168.180.149:8000/api/app/users/1/private-key"
 
 # Usuario 2
-curl -X GET "http://192.168.100.9:8000/api/app/users/2/private-key"
+curl -X GET "http://192.168.180.149:8000/api/app/users/2/private-key"
 ```
 
 Debería retornar las private keys encriptadas.

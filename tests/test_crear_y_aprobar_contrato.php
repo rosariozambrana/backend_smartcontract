@@ -56,9 +56,9 @@ echo "╔═══════════════════════�
 echo "║   TEST: CREAR Y APROBAR CONTRATO (FLUJO FRONTEND)        ║\n";
 echo "╚═══════════════════════════════════════════════════════════╝\n";
 
-$baseUrl = env('APP_URL', 'http://192.168.100.9:8000');
+$baseUrl = env('APP_URL', 'http://192.168.180.149:8000');
 printInfo("Base URL: {$baseUrl}");
-printInfo("Ganache URL: http://192.168.100.9:8545");
+printInfo("Ganache URL: http://192.168.180.149:8545");
 
 // Datos de la BD
 $propietarioId = 1;

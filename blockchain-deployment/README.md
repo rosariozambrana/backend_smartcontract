@@ -22,7 +22,7 @@ npm install
 ### 2. Verificar Ganache está corriendo
 ```
 ✅ Abrir Ganache GUI
-✅ Debe estar en: http://192.168.100.9:7545
+✅ Debe estar en: http://192.168.180.149:7545
 ✅ Network ID: 5777
 ```
 

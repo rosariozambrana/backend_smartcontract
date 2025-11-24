@@ -10,9 +10,23 @@ use Illuminate\Support\Facades\Hash;
 class DatabaseSeeder extends Seeder
 {
     /**
+     * Wallets de Sepolia para usuarios de prueba
+     */
+    private $sepoliaWallets = [
+        'propietario' => [
+            'address' => '0x9f8b77b0baf14231b8b6c65afa52989314abd6c8',
+            'private_key' => '0x2a8812d14c08c06222fb011b3e86e3ae6bdc8e7acf61b5faaa4ff8f95e11ee28',
+        ],
+        'cliente' => [
+            'address' => '0x08fe02022b74e5c218fcc5bc832b7ba82c31395c',
+            'private_key' => '0x3ad97027f50d2213f215cd7d3299fb39798f15b7d57b9ef85717bda98e6006de',
+        ],
+    ];
+
+    /**
      * Asigna wallet según el modo (Ganache o Producción)
      */
-    private function assignWallet($requestedWallet = null)
+    private function assignWallet($userType = null)
     {
         $mode = config('blockchain.mode');
 
@@ -31,9 +45,14 @@ class DatabaseSeeder extends Seeder
                 'private_key' => $wallets[$walletIndex]['private_key'],
             ];
         } else {
-            // MODO PRODUCCIÓN: Usar wallet enviada desde Flutter
+            // MODO PRODUCCIÓN: Usar wallets de Sepolia para seeders
+            if ($userType && isset($this->sepoliaWallets[$userType])) {
+                return $this->sepoliaWallets[$userType];
+            }
+
+            // Si no es un usuario de seeder, wallet null (se asigna desde Flutter)
             return [
-                'address' => $requestedWallet,
+                'address' => null,
                 'private_key' => null,
             ];
         }
@@ -59,7 +78,7 @@ class DatabaseSeeder extends Seeder
         ]);*/
 
         // Asignar wallet al propietario
-        $walletPropietario = $this->assignWallet();
+        $walletPropietario = $this->assignWallet('propietario');
         User::create([
             'name' => 'Propietario',
             'email' => 'propietario@gmail.com',
@@ -76,7 +95,7 @@ class DatabaseSeeder extends Seeder
         ]);
 
         // Asignar wallet al cliente
-        $walletCliente = $this->assignWallet();
+        $walletCliente = $this->assignWallet('cliente');
         User::create([
             'name' => 'Cliente',
             'email' => 'cliente@gmail.com',

@@ -191,7 +191,7 @@ try {
         printWarning("El contrato NO está desplegado o la dirección es incorrecta");
         echo "\n";
         printInfo("Pasos para solucionar:");
-        echo "  1. Abre Ganache en http://192.168.100.9:7545\n";
+        echo "  1. Abre Ganache en http://192.168.180.149:7545\n";
         echo "  2. Ve a la pestaña 'Contracts'\n";
         echo "  3. Si no ves 'RentalContract', despliega con:\n";
         echo "     cd blockchain-deployment\n";

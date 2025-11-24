@@ -1,11 +1,14 @@
 [phases.setup]
-nixPkgs = ["php83", "php83Extensions.gmp", "php83Extensions.bcmath", "php83Extensions.pdo_pgsql", "php83Extensions.mbstring", "php83Extensions.xml", "php83Extensions.curl"]
+nixPkgs = ["php83", "php83Extensions.gmp", "php83Extensions.bcmath", "php83Extensions.pdo_pgsql", "php83Extensions.mbstring", "php83Extensions.xml", "php83Extensions.curl", "php83Extensions.tokenizer", "php83Extensions.fileinfo"]
 
 [phases.install]
-cmds = ["composer install --optimize-autoloader --no-dev --no-interaction --no-scripts"]
+cmds = ["composer install --optimize-autoloader --no-dev --no-interaction"]
 
 [phases.build]
-cmds = ["php artisan config:clear", "php artisan cache:clear"]
-
-[start]
-cmd = "php artisan migrate --force && php artisan db:seed --force && php artisan config:cache && php artisan route:cache && php artisan serve --host=0.0.0.0 --port=${PORT:-8000}"
+cmds = [
+    "php artisan config:clear",
+    "php artisan cache:clear",
+    "php artisan migrate --force",
+    "php artisan config:cache",
+    "php artisan route:cache"
+]

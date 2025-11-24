@@ -33,6 +33,7 @@ blockchain-deployment/node_modules/
 
 # ML Service (deployed separately)
 ml_service/
+landing-page/
 
 # Archivos de respaldo
 *.backup

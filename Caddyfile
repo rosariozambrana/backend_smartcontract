@@ -1,0 +1,6 @@
+:8000 {
+    root * public
+    encode gzip
+    php_fastcgi localhost:9000
+    file_server
+}
